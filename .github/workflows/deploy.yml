@@ -5,7 +5,7 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 jobs:
   build:
@@ -14,21 +14,28 @@ jobs:
       matrix:
         node-version: [20.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+    defaults:
+      run:
+        working-directory: ./frontend
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+      - run: npm ci
+      - run: npm run build
   deploy:
-    name: Deploy app
+    defaults:
+      run:
+        working-directory: ./frontend
+    name: Deploy frontend
     needs: build
     runs-on: ubuntu-latest
-    concurrency: deploy-group    # optional: ensure only one action runs at a time
+    concurrency: deploy-group # optional: ensure only one action runs at a time
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master

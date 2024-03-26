@@ -70,29 +70,56 @@
 
     console.log(images);
 
+    function drawPieceMove(ctx: CanvasRenderingContext2D, piece: Piece) {
+      ctx.fillStyle = "rgba(0, 128, 0, 0.5)";
+    }
+
     function drawPiece(ctx: CanvasRenderingContext2D, piece: Piece) {
-      ctx.fillStyle = "green";
-      // colored circle
-      // ctx.beginPath();
-      // ctx.arc(
-      //   piece.position.x * squareSize + squareSize / 2,
-      //   piece.position.y * squareSize + squareSize / 2,
-      //   10,
-      //   0,
-      //   2 * Math.PI
-      // );
-      // ctx.fill();
-      ctx.drawImage(
-        images[piece.color][piece.type],
+      ctx.fillStyle =
+        game.selectedPiece === piece
+          ? "rgba(0, 128, 0, 0.5)"
+          : "rgba(255, 255, 255, 0.5)";
+      ctx.beginPath();
+      ctx.arc(
         piece.position.x * squareSize,
         piece.position.y * squareSize,
+        (squareSize * game.pieceFatness) / 2,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+      ctx.fillStyle = piece.color === "white" ? "white" : "black";
+      // ctx.fillText(
+      //   piece.type.toUpperCase().charAt(0),
+      //   piece.position.x * squareSize,
+      //   piece.position.y * squareSize
+      // );
+      ctx.drawImage(
+        images[piece.color][piece.type],
+        piece.position.x * squareSize - squareSize / 2,
+        piece.position.y * squareSize - squareSize / 2,
         squareSize,
         squareSize
       );
+      if (game.selectedPiece === piece) {
+        drawPieceMove(ctx, piece);
+      }
     }
 
     function drawPieces(ctx: CanvasRenderingContext2D, pieces: Piece[]) {
       pieces.forEach((piece) => drawPiece(ctx, piece));
+    }
+
+    function handlePieceClick(event: MouseEvent) {
+      const x = event.offsetX / squareSize;
+      const y = event.offsetY / squareSize;
+      console.log(x, y);
+      const piece = game.getPieceAt({ x, y });
+      if (piece) {
+        console.log(piece);
+      } else {
+        console.log("No piece at", x, y);
+      }
     }
 
     const ctx = getOrThrow(
@@ -106,6 +133,7 @@
     // Set the "actual" size of the canvas
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
+    canvas.addEventListener("click", handlePieceClick);
 
     // Scale the context to ensure correct drawing operations
     ctx.scale(dpr, dpr);

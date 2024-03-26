@@ -1,8 +1,10 @@
+import { assert } from "$lib";
+import { distance, distanceSegmentToPoint, type Position } from "./vector";
+
   export type Player = {
     name: string;
   };
   export type Color = "white" | "black";
-  export type Position = { x: number; y: number };
 
   export const pieceType = {
     "p": "pawn",
@@ -25,6 +27,7 @@
     position: Position;
     color: Color;
     type: typeof pieceType[keyof typeof pieceType];
+    alive: boolean;
   };
 
 //   type EnPassant = Position | null;
@@ -52,12 +55,14 @@
         return expandedRow.split("").flatMap((piece, x) => {
             assertPieceType(piece);
             return {
-                position: {x, y},
-                color: piece === piece.toLowerCase() ? "black" : "white",
-                type: pieceType[piece]
+                position: {x: x + 0.5, y: y + 0.5},
+                color: piece === piece.toLowerCase() ? "black" : "white" as Color,
+                type: pieceType[piece],
+                alive: true,
             }
         })
-    })
+    }).filter((piece) => piece.type !== "empty");
+
     return {
         pieces,
         turn: turn === "w" ? "white" : "black",
@@ -69,6 +74,7 @@
   }
 
   export class Game {
+    readonly pieceFatness = 0.9;
     players: [
       { player: Player; color: Color },
       { player: Player; color: Color },
@@ -79,6 +85,8 @@
     castling: ("K" | "Q" | "k" | "q")[] = [];
     halfmoveClock: number = 0;
     fullmoveNumber: number = 1;
+    moves: [Position, Position, Piece[]][] = [];
+    selectedPiece: Piece | null = null;
     constructor({fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"}: {fen?: string} = {}) {
         const { pieces, turn, halfmoveClock, fullmoveNumber } = parseFEN(fen);
         this.pieces = pieces;
@@ -90,4 +98,62 @@
             { player: { name: "Player 2" }, color: "black" },
           ];
     }
+
+    private findCollision(position: Position, fatness = this.pieceFatness): Piece[] {
+        // if we were to put a piece at the given position, would it collide with another piece(s)?
+        const collidingPieces = this.pieces.filter((p) => {
+            return distance(position, p.position) < fatness / 2;
+        });
+        return collidingPieces;
+    }
+
+    private raycast(from: Position, to: Position): Piece[] | boolean {
+        // could you move in a straight line to the given position?
+        // if you go through any pieces, return them
+        // the movement is invalid if you went through a piece AND the destination doesn't collide with the same piece
+        // colliding with your own piece is invalid
+        const collisions = this.pieces.filter((piece) => {
+            if (piece.position.x === from.x && piece.position.y === from.y) {
+                // skip the piece we're moving
+                return false;
+            }
+            if(distanceSegmentToPoint([from, to], piece.position) < this.pieceFatness / 2) {
+                return true;
+            }
+        })
+        if(collisions.some((piece) => piece.color === this.turn)) {
+            // we collided with a piece of the same color
+            return false;
+        }
+        if(collisions.some((piece) => distance(to, piece.position) < this.pieceFatness / 2)) {
+            // we collided with a piece and went through it
+            return false;
+        }
+        return collisions;
+    }
+
+    makeMove(from: Position, to: Position) {
+        const piece = this.findCollision(from);
+        if (!piece) {
+            throw new Error("No piece at the given position");
+        }
+        const raycast = this.raycast(from, to);
+        if(raycast === false) {
+            throw new Error("Invalid move");
+        }
+        this.moves.push([from, to, this.pieces]);
+    }
+
+    getPieceAt(position: Position): Piece | null {
+        const piece = this.findCollision(position);
+        if(piece.length === 0) {
+            this.selectedPiece = null;
+            return null;
+        }
+        console.log('pieces', piece.map((p) => `${p.color}_${p.type} (${distance(position, p.position)})`).join(", "));
+        assert(piece.length === 1, "More than one piece at the given position" );
+        this.selectedPiece = piece[0];
+        return piece[0];
+    }
   }
+

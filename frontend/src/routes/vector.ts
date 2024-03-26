@@ -1,4 +1,6 @@
 export type Position = { x: number; y: number };
+export type Line = [Position, Position];
+export type Circle = { center: Position; radius: number };
 
 function add (a: Position, b: Position) {return {x: a.x + b.x, y: a.y + b.y};}
 function sub (a: Position, b: Position) {return {x: a.x - b.x, y: a.y - b.y};}
@@ -40,3 +42,19 @@ export function distanceSegmentToPoint(line: [Position, Position], point: Positi
 export function distance(a: Position, b: Position) {
     return Math.sqrt(hypot2(a, b));
 }
+
+
+export const South = {x: 0, y: 8};
+export const North = {x: 0, y: -8};
+export const East = {x: 8, y: 0};
+export const West = {x: -8, y: 0};
+export const NorthEast = {x: 8, y: -8};
+export const NorthWest = {x: -8, y: -8};
+export const SouthEast = {x: 8, y: 8};
+export const SouthWest = {x: -8, y: 8};
+
+
+export function relativeLine(origin: Position, addition: Position): Line {
+    return [origin, add(origin, addition)];
+}
+

@@ -6,3 +6,7 @@ export function assert(condition: any, message?: string): asserts condition {
         throw new Error(message);
     }
 }
+
+export function assertNever(x: never): asserts x {
+    throw new Error("This code should not be reachable");
+}

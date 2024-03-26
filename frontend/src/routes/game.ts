@@ -1,5 +1,5 @@
-import { assert } from "$lib";
-import { distance, distanceSegmentToPoint, type Position } from "./vector";
+import { assert, assertNever } from "$lib";
+import { distance, distanceSegmentToPoint, relativeLine, type Line, type Position, type Circle, North, South, East, West, NorthWest, NorthEast, SouthWest, SouthEast } from "./vector";
 
   export type Player = {
     name: string;
@@ -21,7 +21,6 @@ import { distance, distanceSegmentToPoint, type Position } from "./vector";
     "K": "king",
     " ": "empty",
   } as const;
-
 
   export type Piece = {
     position: Position;
@@ -71,6 +70,66 @@ import { distance, distanceSegmentToPoint, type Position } from "./vector";
         halfmoveClock: Number(halfmoveClock),
         fullmoveNumber: Number(fullmoveNumber),
     }
+  }
+
+  export function getPieceMovement(piece: Piece): Line[] | Circle {
+    switch(piece.type) {
+      case "pawn":
+        {
+            const lines: Line[] = [];
+            if(piece.color === "white") {
+                lines.push(relativeLine(piece.position, {x: 0, y: -1}));
+            }
+            if(piece.color === "black") {
+                lines.push(relativeLine(piece.position, {x: 0, y: 1}));
+            }
+            return lines;
+        }
+      case "rook":
+        {
+            const lines: Line[] = [];
+            [North, South, East, West].forEach((direction) => {
+                lines.push(relativeLine(piece.position, direction));
+            });
+            return lines;
+        }
+      case "knight":
+        {
+            return {center: piece.position, radius: Math.sqrt(5)};
+        }
+        case "bishop":
+        {
+            const lines: Line[] = [];
+            [NorthWest, NorthEast, SouthWest, SouthEast].forEach((direction) => {
+                lines.push(relativeLine(piece.position, direction));
+            });
+            return lines;
+        }
+        case "queen":
+        {
+            const lines: Line[] = [];
+            [North, South, East, West, NorthWest, NorthEast, SouthWest, SouthEast].forEach((direction) => {
+                lines.push(relativeLine(piece.position, direction));
+            });
+            return lines;
+        }
+        case "king":
+        {
+            const lines: Line[] = [];
+            [North, South, East, West, NorthWest, NorthEast, SouthWest, SouthEast].forEach((direction) => {
+                lines.push(relativeLine(piece.position, {x: direction.x ? direction.x / Math.abs(direction.x) : 0, y: direction.y ? direction.y / Math.abs(direction.y) : 0}));
+            });
+            return lines;
+        }
+        case "empty":
+            return [];
+        default:
+        {
+            assertNever(piece.type);
+            return [];
+        }
+    }
+
   }
 
   export class Game {

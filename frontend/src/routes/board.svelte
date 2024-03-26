@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Game, type Color, type Piece } from "./game";
+  import { Game, type Color, type Piece, getPieceMovement } from "./game";
 
   let canvas: HTMLCanvasElement;
   let squareSize: number;
@@ -71,12 +71,43 @@
     console.log(images);
 
     function drawPieceMove(ctx: CanvasRenderingContext2D, piece: Piece) {
-      ctx.fillStyle = "rgba(0, 128, 0, 0.5)";
+      const moves = getPieceMovement(piece);
+
+      ctx.lineWidth = game.pieceFatness * squareSize;
+      ctx.strokeStyle = "rgba(0, 128, 0, 0.5)";
+      ctx.lineCap = "round";
+      if (Array.isArray(moves)) {
+        // its an array of lines
+        // type line = [{x: number, y: number}, {x: number, y: number}]
+        moves.forEach((move) => {
+          ctx.beginPath();
+          ctx.moveTo(move[0].x * squareSize, move[0].y * squareSize);
+          ctx.lineTo(move[1].x * squareSize, move[1].y * squareSize);
+          ctx.stroke();
+        });
+      } else {
+        // its a circle
+        // type Circle = { center: {x: number, y: number}; radius: number };
+        ctx.beginPath();
+        ctx.arc(
+          moves.center.x * squareSize,
+          moves.center.y * squareSize,
+          moves.radius * squareSize,
+          0,
+          2 * Math.PI
+        );
+        ctx.stroke();
+      }
     }
 
     function drawPiece(ctx: CanvasRenderingContext2D, piece: Piece) {
+      if (game.selectedPiece === piece) {
+        drawPieceMove(ctx, piece);
+        if (piece.type === "knight") {
+        }
+      }
       ctx.fillStyle =
-        game.selectedPiece === piece
+        game.selectedPiece === piece && piece.type === "knight"
           ? "rgba(0, 128, 0, 0.5)"
           : "rgba(255, 255, 255, 0.5)";
       ctx.beginPath();
@@ -89,11 +120,7 @@
       );
       ctx.fill();
       ctx.fillStyle = piece.color === "white" ? "white" : "black";
-      // ctx.fillText(
-      //   piece.type.toUpperCase().charAt(0),
-      //   piece.position.x * squareSize,
-      //   piece.position.y * squareSize
-      // );
+
       ctx.drawImage(
         images[piece.color][piece.type],
         piece.position.x * squareSize - squareSize / 2,
@@ -101,9 +128,11 @@
         squareSize,
         squareSize
       );
-      if (game.selectedPiece === piece) {
-        drawPieceMove(ctx, piece);
-      }
+      // ctx.fillText(
+      //   piece.type.toUpperCase().charAt(0),
+      //   piece.position.x * squareSize,
+      //   piece.position.y * squareSize
+      // );
     }
 
     function drawPieces(ctx: CanvasRenderingContext2D, pieces: Piece[]) {
@@ -153,7 +182,7 @@
   });
 </script>
 
-<div class="w-full h-full rounded-xl bg-red-200">
-  <canvas bind:this={canvas} class="w-full h-full rounded"></canvas>
+<div class="w-full h-full rounded-xl">
+  <canvas bind:this={canvas} class="w-full aspect-square rounded"></canvas>
   <!-- <img src="/black_rook.png" alt="rook" /> -->
 </div>

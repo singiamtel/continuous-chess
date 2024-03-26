@@ -27,6 +27,7 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
     color: Color;
     type: typeof pieceType[keyof typeof pieceType];
     alive: boolean;
+    touched: boolean;
   };
 
 //   type EnPassant = Position | null;
@@ -58,6 +59,7 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
                 color: piece === piece.toLowerCase() ? "black" : "white" as Color,
                 type: pieceType[piece],
                 alive: true,
+                touched: false,
             }
         })
     }).filter((piece) => piece.type !== "empty");
@@ -79,9 +81,15 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
             const lines: Line[] = [];
             if(piece.color === "white") {
                 lines.push(relativeLine(piece.position, {x: 0, y: -1}));
+                if(!piece.touched) {
+                    lines.push(relativeLine(piece.position, {x: 0, y: -2}));
+                }
             }
             if(piece.color === "black") {
                 lines.push(relativeLine(piece.position, {x: 0, y: 1}));
+                if(!piece.touched) {
+                    lines.push(relativeLine(piece.position, {x: 0, y: 2}));
+                }
             }
             return lines;
         }
@@ -144,7 +152,7 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
     castling: ("K" | "Q" | "k" | "q")[] = [];
     halfmoveClock: number = 0;
     fullmoveNumber: number = 1;
-    moves: [Position, Position, Piece[]][] = [];
+    moves: { from: Position, to: Position, pieces: Piece[], firstTouch: boolean }[] = [];
     selectedPiece: Piece | null = null;
     constructor({fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"}: {fen?: string} = {}) {
         const { pieces, turn, halfmoveClock, fullmoveNumber } = parseFEN(fen);
@@ -192,15 +200,21 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
     }
 
     makeMove(from: Position, to: Position) {
-        const piece = this.findCollision(from);
-        if (!piece) {
+        const pieces = this.findCollision(from);
+        if (!pieces) {
             throw new Error("No piece at the given position");
         }
+        assert(pieces.length === 1, "More than one piece at the given position" );
+        const piece = pieces[0];
         const raycast = this.raycast(from, to);
         if(raycast === false) {
             throw new Error("Invalid move");
         }
-        this.moves.push([from, to, this.pieces]);
+
+        piece.position = to;
+        this.turn = this.turn === "white" ? "black" : "white";
+        this.moves.push({from, to, pieces: this.pieces, firstTouch: !piece.touched});
+        piece.touched = true;
     }
 
     getPieceAt(position: Position): Piece | null {

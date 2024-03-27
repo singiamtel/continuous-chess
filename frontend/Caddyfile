@@ -11,3 +11,8 @@
 	# Or serve a PHP site through php-fpm:
 	# php_fastcgi localhost:9000
 }
+
+chess.crob.at {
+	root * /srv
+	file_server
+}

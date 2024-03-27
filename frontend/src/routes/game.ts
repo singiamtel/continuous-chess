@@ -214,6 +214,8 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
         piece.position = to;
         this.turn = this.turn === "white" ? "black" : "white";
         this.moves.push({from, to, pieces: this.pieces, firstTouch: !piece.touched});
+        this.halfmoveClock++;
+        this.fullmoveNumber++;
         piece.touched = true;
     }
 

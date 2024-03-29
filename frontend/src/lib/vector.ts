@@ -1,6 +1,18 @@
 export type Position = { x: number; y: number };
-export type Line = [Position, Position];
-export type Circle = { center: Position; radius: number };
+export type Line = { from: Position; to: Position };
+export type Circunference = { center: Position; radius: number };
+
+export function isCircunference(movement: Line | Line[] | Circunference): movement is Circunference {
+    return (movement as Circunference).center !== undefined;
+}
+
+export function closestPointToCircunference(circunference: Circunference, point: Position): Position {
+    const angle = Math.atan2(point.y - circunference.center.y, point.x - circunference.center.x);
+    return {
+        x: circunference.center.x + Math.cos(angle) * circunference.radius,
+        y: circunference.center.y + Math.sin(angle) * circunference.radius,
+    };
+}
 
 function add (a: Position, b: Position) {return {x: a.x + b.x, y: a.y + b.y};}
 function sub (a: Position, b: Position) {return {x: a.x - b.x, y: a.y - b.y};}
@@ -14,9 +26,9 @@ function proj(a: Position, b: Position) {
 }
 
 // From https://stackoverflow.com/a/1079478
-export function distanceSegmentToPoint(line: [Position, Position], point: Position) {
+export function distanceSegmentToPoint(line: Line, point: Position) {
     // Compute vectors AC and AB
-    const [A, B] = line;
+    const {from: A, to: B} = line;
     const C = point;
     const AC = sub(C, A);
     const AB = sub(B, A);
@@ -55,6 +67,26 @@ export const SouthWest = {x: -8, y: 8};
 
 
 export function relativeLine(origin: Position, addition: Position): Line {
-    return [origin, add(origin, addition)];
+    return {from: origin, to: add(origin, addition)};
+}
+
+export function absoluteLine(origin: Position, destination: Position): Line {
+    return {from: origin, to: destination};
+}
+
+export function closestPointToLine(line: Line, point: Position): Position {
+    const {from: A, to: B} = line;
+    const AB = sub(B, A);
+    const AC = sub(point, A);
+
+    const k = dot(AC, AB) / dot(AB, AB);
+
+    if (k <= 0) {
+        return A;
+    } else if (k >= 1) {
+        return B;
+    }
+
+    return add(A, proj(AC, AB));
 }
 

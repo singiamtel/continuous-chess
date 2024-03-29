@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Game, type Color, type Piece, getPieceMovement } from "./game";
+  import { Game, type Color, type Piece, getPieceMovement } from "$lib/game";
 
   let canvas: HTMLCanvasElement;
   let squareSize: number;
@@ -81,8 +81,8 @@
         // type line = [{x: number, y: number}, {x: number, y: number}]
         moves.forEach((move) => {
           ctx.beginPath();
-          ctx.moveTo(move[0].x * squareSize, move[0].y * squareSize);
-          ctx.lineTo(move[1].x * squareSize, move[1].y * squareSize);
+          ctx.moveTo(move.from.x * squareSize, move.from.y * squareSize);
+          ctx.lineTo(move.to.x * squareSize, move.to.y * squareSize);
           ctx.stroke();
         });
       } else {
@@ -136,10 +136,22 @@
     }
 
     function drawPieces(ctx: CanvasRenderingContext2D, pieces: Piece[]) {
-      pieces.forEach((piece) => drawPiece(ctx, piece));
+      pieces
+        .filter((piece) => piece.alive)
+        .forEach((piece) => drawPiece(ctx, piece));
     }
 
     function handlePieceClick(event: MouseEvent) {
+      if (game.selectedPiece) {
+        if (
+          !game.attemptMove({
+            x: event.offsetX / squareSize,
+            y: event.offsetY / squareSize,
+          })
+        )
+          game.selectedPiece = null;
+        return;
+      }
       const x = event.offsetX / squareSize;
       const y = event.offsetY / squareSize;
       console.log(x, y);

@@ -1,5 +1,5 @@
 import { assert, assertNever } from "$lib";
-import { distance, distanceSegmentToPoint, relativeLine, type Line, type Position, type Circle, North, South, East, West, NorthWest, NorthEast, SouthWest, SouthEast } from "./vector";
+import { distance, distanceSegmentToPoint, relativeLine, type Line, type Position, type Circunference, North, South, East, West, NorthWest, NorthEast, SouthWest, SouthEast, isCircunference, closestPointToCircunference, closestPointToLine } from "$lib/vector";
 
   export type Player = {
     name: string;
@@ -74,7 +74,7 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
     }
   }
 
-  export function getPieceMovement(piece: Piece): Line[] | Circle {
+  export function getPieceMovement(piece: Piece): Line[] | Circunference {
     switch(piece.type) {
       case "pawn":
         {
@@ -155,6 +155,7 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
     moves: { from: Position, to: Position, pieces: Piece[], firstTouch: boolean }[] = [];
     selectedPiece: Piece | null = null;
     constructor({fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"}: {fen?: string} = {}) {
+    // constructor({fen = "rnbqkbnr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"}: {fen?: string} = {}) {
         const { pieces, turn, halfmoveClock, fullmoveNumber } = parseFEN(fen);
         this.pieces = pieces;
         this.turn = turn;
@@ -169,58 +170,97 @@ import { distance, distanceSegmentToPoint, relativeLine, type Line, type Positio
     private findCollision(position: Position, fatness = this.pieceFatness): Piece[] {
         // if we were to put a piece at the given position, would it collide with another piece(s)?
         const collidingPieces = this.pieces.filter((p) => {
-            return distance(position, p.position) < fatness / 2;
+            if(!p.alive) { return false; }
+            return distance(position, p.position) < (this.pieceFatness + fatness)/2;
         });
         return collidingPieces;
     }
 
-    private raycast(from: Position, to: Position): Piece[] | boolean {
+    private raycast(self: Piece, from: Position, to: Position): Piece[] | false {
         // could you move in a straight line to the given position?
         // if you go through any pieces, return them
         // the movement is invalid if you went through a piece AND the destination doesn't collide with the same piece
         // colliding with your own piece is invalid
         const collisions = this.pieces.filter((piece) => {
-            if (piece.position.x === from.x && piece.position.y === from.y) {
+            if (self.position.x === piece.position.x && self.position.y === piece.position.y) {
                 // skip the piece we're moving
+                console.log('skipping self');
                 return false;
             }
-            if(distanceSegmentToPoint([from, to], piece.position) < this.pieceFatness / 2) {
+            if(!piece.alive) {
+                // skip dead pieces
+                return false;
+            }
+            console.log('checking collision with', piece.color, piece.type, piece.position, to);
+            if(distanceSegmentToPoint({from, to}, piece.position) < this.pieceFatness) {
+                console.log({x:from, y:to}, 'collided with', piece.color, piece.type, 'at', piece.position);
                 return true;
             }
         })
-        if(collisions.some((piece) => piece.color === this.turn)) {
-            // we collided with a piece of the same color
+        if(collisions.some((piece) => piece.color === self.color)) {
+            // we collided with a piece of the same color, illegal move
+            console.log('collided with same color');
             return false;
         }
-        if(collisions.some((piece) => distance(to, piece.position) < this.pieceFatness / 2)) {
-            // we collided with a piece and went through it
+        if(collisions.some((piece) => distance(to, piece.position) > this.pieceFatness)) {
+            // we collided with an enemy piece and went through it, illegal move
+            console.log('collided with enemy but went through', to, collisions.find((piece) => distance(to, piece.position) > this.pieceFatness / 2));
             return false;
         }
+        // will capture these piece(s) on move (can be empty if no capture)
         return collisions;
     }
 
-    makeMove(from: Position, to: Position) {
-        const pieces = this.findCollision(from);
-        if (!pieces) {
-            throw new Error("No piece at the given position");
+    private approximateMove(to: Position, movements: Line[] | Circunference): Position | false {
+        if(isCircunference(movements)) {
+            const closest = closestPointToCircunference(movements, to);
+            if(distance(closest, to) < this.pieceFatness / 2) {
+                return closest;
+            }
+            return false;
         }
-        assert(pieces.length === 1, "More than one piece at the given position" );
-        const piece = pieces[0];
-        const raycast = this.raycast(from, to);
-        if(raycast === false) {
-            throw new Error("Invalid move");
+        const closestMoves = movements.map((line) => closestPointToLine(line, to)).sort((a, b) => distance(a, to) - distance(b, to));
+        const closest = closestMoves[0];
+        if(distance(closest, to) < this.pieceFatness / 2) {
+            return closest;
+        }
+        return false;
+    }
+
+    attemptMove(to: Position): boolean {
+        if(!this.selectedPiece) {
+            return false;
+        }
+        const movement = getPieceMovement(this.selectedPiece);
+        console.log('movement', movement);
+        const approximatedMove = this.approximateMove(to, movement); // center the move to the closest point in the movement
+        if(!approximatedMove) {
+            return false;
         }
 
-        piece.position = to;
+        if(this.selectedPiece.type === "knight") {
+            const captured = this.findCollision(approximatedMove, );
+            if(captured.some((piece) => piece.color === this.selectedPiece!.color)) return false;
+            captured.forEach((piece) => piece.alive = false);
+        } else {
+            const captured = this.raycast(this.selectedPiece, this.selectedPiece.position, approximatedMove);
+            if(!captured) return false;
+            console.log('captured', captured);
+            captured.forEach((piece) => piece.alive = false);
+        }
+
         this.turn = this.turn === "white" ? "black" : "white";
-        this.moves.push({from, to, pieces: this.pieces, firstTouch: !piece.touched});
         this.halfmoveClock++;
         this.fullmoveNumber++;
-        piece.touched = true;
+        this.selectedPiece.position = approximatedMove;
+        this.selectedPiece.touched = true;
+        this.moves.push({from: this.selectedPiece.position, to: approximatedMove, pieces: this.pieces, firstTouch: !this.selectedPiece.touched});
+        this.selectedPiece = null;
+        return true;
     }
 
     getPieceAt(position: Position): Piece | null {
-        const piece = this.findCollision(position);
+        const piece = this.findCollision(position, 0);
         if(piece.length === 0) {
             this.selectedPiece = null;
             return null;

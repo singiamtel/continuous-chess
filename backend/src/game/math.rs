@@ -45,28 +45,28 @@ fn project(p1: &Point, p2: &Point) -> Point {
 
 // From https://stackoverflow.com/a/1079478
 fn distance_point_to_vector(line: &Vector, point: &Point) -> f32 {
-    let Vector { start: A, end: B } = line;
-    let C = point;
+    let Vector { start: a, end: b } = line;
+    let c = point;
     // Compute AC and AB
-    let AC = subtract(C, A);
-    let AB = subtract(B, A);
+    let ac = subtract(c, a);
+    let ab = subtract(b, a);
 
     // Get point D by taking the projection of AC onto AB then adding the offset of A
-    let D = add(&project(&AC, &AB), A);
+    let d = add(&project(&ac, &ab), a);
 
-    let AD = subtract(&D, A);
+    let ad = subtract(&d, a);
 
-    // D might not be on AB so calculate k of D down AB (aka solve AD = k * AB)
-    // We can use either component, but choose larger value to reduce the chance of dividing by zero
-    let k = if AB.x.abs() > AB.y.abs() {
-        AD.x / AB.x
+    // d might not be on ab so calculate k of d down ab (aka solve ad = k * ab)
+    // we can use either component, but choose larger value to reduce the chance of dividing by zero
+    let k = if ab.x.abs() > ab.y.abs() {
+        ad.x / ab.x
     } else {
-        AD.y / AB.y
+        ad.y / ab.y
     };
     if k < 0.0 {
-        distance(C, A)
+        distance(c, a)
     } else {
-        distance(C, B)
+        distance(c, b)
     }
 }
 
@@ -82,19 +82,19 @@ pub fn add_vector_to_point(point: &Point, vector: &Vector) -> Point {
 }
 
 fn closest_point_on_line(line: &Vector, point: &Point) -> Point {
-    let Vector { start: A, end: B } = line;
-    let AB = subtract(B, A);
-    let AC = subtract(point, A);
+    let Vector { start: a, end: b } = line;
+    let ab = subtract(b, a);
+    let ac = subtract(point, a);
 
-    let k = dot(&AC, &AB) / dot(&AB, &AB);
+    let k = dot(&ac, &ab) / dot(&ab, &ab);
     if k < 0.0 {
-        Point { x: A.x, y: A.y }
+        Point { x: a.x, y: a.y }
     } else if k > 1.0 {
-        Point { x: B.x, y: B.y }
+        Point { x: b.x, y: b.y }
     } else {
         Point {
-            x: A.x + AB.x * k,
-            y: A.y + AB.y * k,
+            x: a.x + ab.x * k,
+            y: a.y + ab.y * k,
         }
     }
 }

@@ -12,6 +12,6 @@ export function assertNever(x: never): asserts x {
 }
 
 export function capitalize(s: string): string {
-    assert(s.length > 0), "capitalize: empty string";
+    assert(s.length > 0, "capitalize: empty string");
     return s.charAt(0).toUpperCase() + s.slice(1);
 }

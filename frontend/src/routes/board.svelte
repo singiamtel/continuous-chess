@@ -5,13 +5,16 @@
     type Color,
     type Piece,
     getPieceMovement,
-    game,
   } from "$lib/game.svelte";
   import { capitalize } from "$lib";
+  import { writable } from "svelte/store";
 
   let canvas: HTMLCanvasElement;
+  let canvasWidth: number;
   let squareSize: number;
   let turn: Color = "white";
+  let game = writable(new Game());
+  let winner: Game["winner"];
 
   function getOrThrow<T>(value: T | null, message: string): T {
     if (value === null) {
@@ -106,6 +109,24 @@
       }
     }
 
+    function drawWinner(
+      ctx: CanvasRenderingContext2D,
+      winner: Exclude<Game["winner"], null>
+    ) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.font = "48px serif";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        winner === "draw"
+          ? "Game drawn"
+          : `${capitalize(winner.name)} (${winner.color}) wins!`,
+        canvasWidth / 2,
+        canvasWidth / 2
+      );
+    }
+
     function drawPiece(ctx: CanvasRenderingContext2D, piece: Piece) {
       if ($game.selectedPiece === piece) {
         drawPieceMove(ctx, piece);
@@ -146,6 +167,9 @@
     }
 
     function handlePieceClick(event: MouseEvent) {
+      if (winner) {
+        return;
+      }
       if ($game.selectedPiece) {
         if (
           !$game.attemptMove({
@@ -155,6 +179,7 @@
         )
           $game.selectedPiece = null;
         turn = $game.getTurn();
+        winner = $game.checkWinner();
         return;
       }
       const x = event.offsetX / squareSize;
@@ -189,11 +214,13 @@
     canvas.style.height = `${rect.height}px`;
 
     (function loop() {
-      squareSize = canvas.style.width ? parseInt(canvas.style.width) / 8 : 100;
+      canvasWidth = canvas.style.width ? parseInt(canvas.style.width) : 800;
+      squareSize = canvasWidth / 8;
       frame = requestAnimationFrame(loop);
       //   ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBoard(ctx);
       drawPieces(ctx, $game.pieces);
+      winner && drawWinner(ctx, winner);
     })();
     return () => cancelAnimationFrame(frame);
   });
@@ -202,5 +229,31 @@
 <div class="w-full h-full rounded-xl">
   <p>{capitalize(turn)}'s turn</p>
   <canvas bind:this={canvas} class="w-full aspect-square rounded"></canvas>
-  <!-- <img src="/black_rook.png" alt="rook" /> -->
+  <div class="grid grid-cols-2 mt-2">
+    <div
+      class="flex flex-col items-center gap-2 border rounded-s border-slate-400 p-2"
+    >
+      <label for="pieceFatness">Piece Fatness ({$game.pieceFatness})</label>
+      <input
+        type="range"
+        min="0.1"
+        max="1"
+        step="0.01"
+        bind:value={$game.pieceFatness}
+      />
+      <button
+        class="bg-blue-300 text-black rounded-md px-2 py-1"
+        on:click={() => ($game.pieceFatness = Game.defaultPieceFatness)}
+        >Reset fatness</button
+      >
+    </div>
+    <div
+      class="flex flex-col items-center gap-2 border-y border-e rounded-e border-slate-400 p-2"
+    >
+      <button
+        class="bg-blue-300 text-black px-2 py-1 rounded-md"
+        on:click={() => ($game = new Game())}>Reset Game</button
+      >
+    </div>
+  </div>
 </div>

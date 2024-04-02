@@ -1,5 +1,4 @@
 <script lang="ts" context="module">
-  import { writable } from "svelte/store";
   import { assert, assertNever } from "$lib";
   import {
     distance,
@@ -21,10 +20,11 @@
     closestPointToLine,
   } from "$lib/vector";
 
+  export type Color = "white" | "black";
   export type Player = {
     name: string;
+    color: Color;
   };
-  export type Color = "white" | "black";
 
   export const pieceType = {
     p: "pawn",
@@ -189,11 +189,11 @@
   }
 
   export class Game {
-    readonly pieceFatness = 0.34 * 2; // if radius higher than sqrt(2)/4, pieces will collide with allies when moving diagonally in the opening
-    players: [
-      { player: Player; color: Color },
-      { player: Player; color: Color },
-    ];
+    static readonly defaultPieceFatness = 0.34 * 2; // if radius higher than sqrt(2)/4, pieces will collide with allies when moving diagonally in the opening
+    static readonly defaultFEN =
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    pieceFatness = Game.defaultPieceFatness;
+    players: [{ player: Player }, { player: Player }];
     pieces: Piece[];
     winner: Player | null | "draw" = null;
     turn: Color = "white";
@@ -207,18 +207,15 @@
       firstTouch: boolean;
     }[] = [];
     selectedPiece: Piece | null = null;
-    constructor({
-      fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    }: { fen?: string } = {}) {
-      // constructor({fen = "rnbqkbnr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"}: {fen?: string} = {}) {
+    constructor({ fen = Game.defaultFEN }: { fen?: string } = {}) {
       const { pieces, turn, halfmoveClock, fullmoveNumber } = parseFEN(fen);
       this.pieces = pieces;
       this.turn = turn;
       this.halfmoveClock = halfmoveClock;
       this.fullmoveNumber = fullmoveNumber;
       this.players = [
-        { player: { name: "Player 1" }, color: "white" },
-        { player: { name: "Player 2" }, color: "black" },
+        { player: { name: "Player 1", color: "white" } },
+        { player: { name: "Player 2", color: "black" } },
       ];
     }
 
@@ -395,7 +392,31 @@
       this.selectedPiece = piece[0];
       return piece[0];
     }
+
+    checkWinner(): Game["winner"] {
+      const whiteKing = this.pieces.find(
+        (piece) => piece.type === "king" && piece.color === "white"
+      );
+      const blackKing = this.pieces.find(
+        (piece) => piece.type === "king" && piece.color === "black"
+      );
+      if (!whiteKing || !blackKing) {
+        // Only happens with wrong FENs so far
+        // How would you even draw in this game?
+        this.winner = "draw";
+        return "draw";
+      }
+      if (!whiteKing.alive) {
+        this.winner = this.players[1].player;
+        return this.players[1].player;
+      }
+      if (!blackKing.alive) {
+        this.winner = this.players[0].player;
+        return this.players[0].player;
+      }
+      return null;
+    }
   }
 
-  export let game = writable(new Game());
+  //   export let game = writable(new Game());
 </script>

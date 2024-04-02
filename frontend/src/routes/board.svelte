@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Game, type Color, type Piece, getPieceMovement } from "$lib/game";
+  import {
+    Game,
+    type Color,
+    type Piece,
+    getPieceMovement,
+    game,
+  } from "$lib/game.svelte";
+  import { capitalize } from "$lib";
 
   let canvas: HTMLCanvasElement;
   let squareSize: number;
-
-  let game: Game = new Game();
+  let turn: Color = "white";
 
   function getOrThrow<T>(value: T | null, message: string): T {
     if (value === null) {
@@ -73,7 +79,7 @@
     function drawPieceMove(ctx: CanvasRenderingContext2D, piece: Piece) {
       const moves = getPieceMovement(piece);
 
-      ctx.lineWidth = game.pieceFatness * squareSize;
+      ctx.lineWidth = $game.pieceFatness * squareSize;
       ctx.strokeStyle = "rgba(0, 128, 0, 0.5)";
       ctx.lineCap = "round";
       if (Array.isArray(moves)) {
@@ -101,20 +107,18 @@
     }
 
     function drawPiece(ctx: CanvasRenderingContext2D, piece: Piece) {
-      if (game.selectedPiece === piece) {
+      if ($game.selectedPiece === piece) {
         drawPieceMove(ctx, piece);
-        if (piece.type === "knight") {
-        }
       }
       ctx.fillStyle =
-        game.selectedPiece === piece && piece.type === "knight"
+        $game.selectedPiece === piece && piece.type === "knight"
           ? "rgba(0, 128, 0, 0.5)"
           : "rgba(255, 255, 255, 0.5)";
       ctx.beginPath();
       ctx.arc(
         piece.position.x * squareSize,
         piece.position.y * squareSize,
-        (squareSize * game.pieceFatness) / 2,
+        (squareSize * $game.pieceFatness) / 2,
         0,
         2 * Math.PI
       );
@@ -123,10 +127,10 @@
 
       ctx.drawImage(
         images[piece.color][piece.type],
-        piece.position.x * squareSize - squareSize / 2,
-        piece.position.y * squareSize - squareSize / 2,
-        squareSize,
-        squareSize
+        piece.position.x * squareSize - (squareSize * $game.pieceFatness) / 2,
+        piece.position.y * squareSize - (squareSize * $game.pieceFatness) / 2,
+        squareSize * $game.pieceFatness,
+        squareSize * $game.pieceFatness
       );
       // ctx.fillText(
       //   piece.type.toUpperCase().charAt(0),
@@ -142,20 +146,21 @@
     }
 
     function handlePieceClick(event: MouseEvent) {
-      if (game.selectedPiece) {
+      if ($game.selectedPiece) {
         if (
-          !game.attemptMove({
+          !$game.attemptMove({
             x: event.offsetX / squareSize,
             y: event.offsetY / squareSize,
           })
         )
-          game.selectedPiece = null;
+          $game.selectedPiece = null;
+        turn = $game.getTurn();
         return;
       }
       const x = event.offsetX / squareSize;
       const y = event.offsetY / squareSize;
       console.log(x, y);
-      const piece = game.getPieceAt({ x, y });
+      const piece = $game.getPieceAt({ x, y });
       if (piece) {
         console.log(piece);
       } else {
@@ -188,13 +193,14 @@
       frame = requestAnimationFrame(loop);
       //   ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBoard(ctx);
-      drawPieces(ctx, game.pieces);
+      drawPieces(ctx, $game.pieces);
     })();
     return () => cancelAnimationFrame(frame);
   });
 </script>
 
 <div class="w-full h-full rounded-xl">
+  <p>{capitalize(turn)}'s turn</p>
   <canvas bind:this={canvas} class="w-full aspect-square rounded"></canvas>
   <!-- <img src="/black_rook.png" alt="rook" /> -->
 </div>
